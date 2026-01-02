@@ -1,0 +1,279 @@
+openapi: 3.0.3
+info:
+  title: Casino Transaction Management System API
+  description: |
+    API for querying casino transaction data (bets and wins).
+    This API allows users to query their transaction history with support for filtering by transaction type.
+  version: 1.0.0
+
+paths:
+  /transactions:
+    post:
+      tags:
+        - Transactions
+      summary: Search transactions
+      description: |
+        Retrieve a list of transactions with optional filtering.
+        Supports filtering by user, transaction type, date range, and amount.
+        Uses POST method to handle complex filter criteria in request body.
+      operationId: searchTransactions
+      requestBody:
+        description: Filter criteria for searching transactions
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionSearchRequest'
+            examples:
+              all_transactions:
+                summary: Get all transactions with pagination
+                value:
+                  limit: 100
+                  offset: 0
+              
+              user_bets:
+                summary: Get bets for specific user
+                value:
+                  user_id: "123e4567-e89b-12d3-a456-426614174000"
+                  transaction_type: "bet"
+                  limit: 50
+                  offset: 0
+              
+              date_range:
+                summary: Get transactions in date range
+                value:
+                  created_from: "2024-01-01T00:00:00Z"
+                  created_to: "2024-01-31T23:59:59Z"
+                  limit: 100
+                  offset: 0
+              
+              complex_filter:
+                summary: Complex filter with multiple criteria
+                value:
+                  user_id: "123e4567-e89b-12d3-a456-426614174000"
+                  transaction_type: "win"
+                  amount_from: 100.00
+                  amount_to: 1000.00
+                  created_from: "2024-01-01T00:00:00Z"
+                  created_to: "2024-12-31T23:59:59Z"
+                  limit: 50
+                  offset: 0
+
+      responses:
+        '200':
+          description: Successful response with list of transactions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionListResponse'
+              examples:
+                success:
+                  summary: Example response with transactions
+                  value:
+                    total: 2
+                    limit: 100
+                    offset: 0
+                    transactions:
+                      - user_id: "123e4567-e89b-12d3-a456-426614174000"
+                        transaction_type: "bet"
+                        amount: 50.00
+                        timestamp: "2024-01-15T14:30:00Z"
+                      - user_id: "123e4567-e89b-12d3-a456-426614174000"
+                        transaction_type: "win"
+                        amount: 100.00
+                        timestamp: "2024-01-15T14:31:00Z"
+        
+        '400':
+          description: Bad request - invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_uuid:
+                  summary: Invalid UUID format
+                  value:
+                    error: "Invalid user_id format"
+                    message: "user_id must be a valid UUID"
+                invalid_date:
+                  summary: Invalid date format
+                  value:
+                    error: "Invalid date format"
+                    message: "created_from must be in ISO 8601 format"
+        
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check endpoint
+      description: Check if the API is running and healthy
+      operationId: healthCheck
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T14:30:00Z"
+
+components:
+  schemas:
+    TransactionSearchRequest:
+      type: object
+      description: Request body for searching/filtering transactions
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: Filter by user ID (UUID)
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        
+        transaction_type:
+          type: string
+          enum: [bet, win, all]
+          description: Filter by transaction type
+          default: all
+          example: "bet"
+        
+        amount_from:
+          type: number
+          format: double
+          minimum: 0
+          description: Minimum transaction amount (in dollars)
+          example: 10.00
+        
+        amount_to:
+          type: number
+          format: double
+          minimum: 0
+          description: Maximum transaction amount (in dollars)
+          example: 1000.00
+        
+        created_from:
+          type: string
+          format: date-time
+          description: Start date for filtering (ISO 8601 format)
+          example: "2024-01-01T00:00:00Z"
+        
+        created_to:
+          type: string
+          format: date-time
+          description: End date for filtering (ISO 8601 format)
+          example: "2024-12-31T23:59:59Z"
+        
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+          description: Maximum number of results to return
+          example: 50
+        
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
+          description: Number of results to skip (for pagination)
+          example: 0
+
+    Transaction:
+      type: object
+      description: Represents a single transaction event (bet or win)
+      required:
+        - user_id
+        - transaction_type
+        - amount
+        - timestamp
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: The ID of the user making the transaction
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        
+        transaction_type:
+          type: string
+          enum: [bet, win]
+          description: The type of transaction
+          example: "bet"
+        
+        amount:
+          type: number
+          format: double
+          minimum: 0
+          description: The amount of money for the transaction (in dollars)
+          example: 50.00
+        
+        timestamp:
+          type: string
+          format: date-time
+          description: The time the transaction occurred
+          example: "2024-01-15T14:30:00Z"
+
+    TransactionListResponse:
+      type: object
+      description: Response containing a list of transactions
+      required:
+        - total
+        - limit
+        - offset
+        - transactions
+      properties:
+        total:
+          type: integer
+          description: Total number of transactions matching the filter
+          example: 150
+        
+        limit:
+          type: integer
+          description: Maximum number of results returned
+          example: 100
+        
+        offset:
+          type: integer
+          description: Number of results skipped
+          example: 0
+        
+        transactions:
+          type: array
+          description: Array of transaction objects
+          items:
+            $ref: '#/components/schemas/Transaction'
+
+    ErrorResponse:
+      type: object
+      description: Error response format
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Short error identifier
+          example: "invalid_parameter"
+        
+        message:
+          type: string
+          description: Detailed error message
+          example: "The provided user_id is not a valid UUID"
+        
+        details:
+          type: object
+          description: Additional error details (optional)
+          additionalProperties: true
+
