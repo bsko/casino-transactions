@@ -1,3 +1,4 @@
+//go:generate go run go.uber.org/mock/mockgen@latest -source=types.go -destination=mocks/mocks.go -package=mocks
 package consumer
 
 import (

@@ -41,6 +41,22 @@ func NewTransactionEventRepository(masterConf config.Postgres, slaveConf config.
 	}
 }
 
+func (t *TransactionEventRepository) Connect() error {
+	masterDB, err := t.connectToInstance(t.masterConf)
+	if err != nil {
+		return fmt.Errorf("failed to connect to master database: %w", err)
+	}
+	t.masterDB = masterDB
+
+	slaveDB, err := t.connectToInstance(t.slaveConf)
+	if err != nil {
+		return fmt.Errorf("failed to connect to slave database: %w", err)
+	}
+	t.slaveDB = slaveDB
+
+	return nil
+}
+
 func (t *TransactionEventRepository) connectToInstance(conf config.Postgres) (*sqlx.DB, error) {
 	connStr := fmt.Sprintf(
 		"%s?user=%s&password=%s",
@@ -59,24 +75,6 @@ func (t *TransactionEventRepository) connectToInstance(conf config.Postgres) (*s
 	db.SetConnMaxLifetime(time.Duration(conf.MaxConnLifetime) * time.Minute)
 
 	return db, nil
-}
-
-func (t *TransactionEventRepository) Connect() error {
-	// Connect to master
-	masterDB, err := t.connectToInstance(t.masterConf)
-	if err != nil {
-		return fmt.Errorf("failed to connect to master database: %w", err)
-	}
-	t.masterDB = masterDB
-
-	// Connect to slave
-	slaveDB, err := t.connectToInstance(t.slaveConf)
-	if err != nil {
-		return fmt.Errorf("failed to connect to slave database: %w", err)
-	}
-	t.slaveDB = slaveDB
-
-	return nil
 }
 
 func (t *TransactionEventRepository) GetListByFilter(filter entity.TransactionEventFilter) ([]entity.TransactionEvent, error) {

@@ -54,3 +54,6 @@ config.local.*
 *.local.yaml
 *.local.yml
 
+# Generated mocks
+**/mocks/
+
