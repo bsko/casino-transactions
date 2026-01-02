@@ -1,6 +1,13 @@
 http:
   port: 9093
-postgres:
+postgresMaster:
+  connectionString: postgres://localhost:5432/casino_transactions?sslmode=disable
+  user: postgres
+  password: "123456"
+  maxOpenConns: 25
+  maxIdleConns: 5
+  maxConnLifetime: 5
+postgresSlave:
   connectionString: postgres://localhost:5432/casino_transactions?sslmode=disable
   user: postgres
   password: "123456"

@@ -20,8 +20,10 @@ const (
 )
 
 type TransactionEventRepository struct {
-	conf config.Postgres
-	db   *sqlx.DB
+	masterConf config.Postgres
+	slaveConf  config.Postgres
+	masterDB   *sqlx.DB
+	slaveDB    *sqlx.DB
 }
 
 type transactionEventRow struct {
@@ -32,37 +34,54 @@ type transactionEventRow struct {
 	CreatedAt       time.Time `db:"created_at"`
 }
 
-func NewTransactionEventRepository(conf config.Postgres) *TransactionEventRepository {
+func NewTransactionEventRepository(masterConf config.Postgres, slaveConf config.Postgres) *TransactionEventRepository {
 	return &TransactionEventRepository{
-		conf: conf,
+		masterConf: masterConf,
+		slaveConf:  slaveConf,
 	}
 }
 
-func (t *TransactionEventRepository) Connect() error {
+func (t *TransactionEventRepository) connectToInstance(conf config.Postgres) (*sqlx.DB, error) {
 	connStr := fmt.Sprintf(
 		"%s?user=%s&password=%s",
-		t.conf.ConnectionString,
-		t.conf.User,
-		t.conf.Password,
+		conf.ConnectionString,
+		conf.User,
+		conf.Password,
 	)
 
 	db, err := sqlx.Connect("postgres", connStr)
 	if err != nil {
-		return fmt.Errorf("failed to connect to database: %w", err)
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	t.db = db
+	db.SetMaxOpenConns(conf.MaxOpenConns)
+	db.SetMaxIdleConns(conf.MaxIdleConns)
+	db.SetConnMaxLifetime(time.Duration(conf.MaxConnLifetime) * time.Minute)
 
-	t.db.SetMaxOpenConns(t.conf.MaxOpenConns)
-	t.db.SetMaxIdleConns(t.conf.MaxIdleConns)
-	t.db.SetConnMaxLifetime(time.Duration(t.conf.MaxConnLifetime) * time.Minute)
+	return db, nil
+}
+
+func (t *TransactionEventRepository) Connect() error {
+	// Connect to master
+	masterDB, err := t.connectToInstance(t.masterConf)
+	if err != nil {
+		return fmt.Errorf("failed to connect to master database: %w", err)
+	}
+	t.masterDB = masterDB
+
+	// Connect to slave
+	slaveDB, err := t.connectToInstance(t.slaveConf)
+	if err != nil {
+		return fmt.Errorf("failed to connect to slave database: %w", err)
+	}
+	t.slaveDB = slaveDB
 
 	return nil
 }
 
 func (t *TransactionEventRepository) GetListByFilter(filter entity.TransactionEventFilter) ([]entity.TransactionEvent, error) {
-	if t.db == nil {
-		log.Printf("failed to connect to database")
+	if t.slaveDB == nil {
+		log.Printf("failed to connect to slave database")
 		return nil, sql.ErrConnDone
 	}
 
@@ -111,7 +130,7 @@ func (t *TransactionEventRepository) GetListByFilter(filter entity.TransactionEv
 	}
 
 	var rows []transactionEventRow
-	err = t.db.Select(&rows, query, args...)
+	err = t.slaveDB.Select(&rows, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch transactions: %w", err)
 	}
@@ -137,8 +156,8 @@ func (t *TransactionEventRepository) GetListByFilter(filter entity.TransactionEv
 }
 
 func (t *TransactionEventRepository) BatchStore(batch []entity.TransactionEvent) error {
-	if t.db == nil {
-		return fmt.Errorf("database connection is not initialized, call Connect() first")
+	if t.masterDB == nil {
+		return fmt.Errorf("master database connection is not initialized, call Connect() first")
 	}
 
 	if len(batch) == 0 {
@@ -146,7 +165,7 @@ func (t *TransactionEventRepository) BatchStore(batch []entity.TransactionEvent)
 	}
 
 	ctx := context.Background()
-	tx, err := t.db.BeginTxx(ctx, nil)
+	tx, err := t.masterDB.BeginTxx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
@@ -183,8 +202,23 @@ func (t *TransactionEventRepository) BatchStore(batch []entity.TransactionEvent)
 }
 
 func (t *TransactionEventRepository) Close() error {
-	if t.db != nil {
-		return t.db.Close()
+	var errs []error
+
+	if t.masterDB != nil {
+		if err := t.masterDB.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("failed to close master connection: %w", err))
+		}
 	}
+
+	if t.slaveDB != nil {
+		if err := t.slaveDB.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("failed to close slave connection: %w", err))
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("close errors: %v", errs)
+	}
+
 	return nil
 }

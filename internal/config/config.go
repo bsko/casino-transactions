@@ -28,10 +28,11 @@ func (r *Reader) Read(filename string) (conf *App, err error) {
 }
 
 type App struct {
-	Http     *Http     `yaml:"http"`
-	Kafka    *Kafka    `yaml:"kafka"`
-	Postgres *Postgres `yaml:"postgres"`
-	Producer *Producer `yaml:"producer"`
+	Http           *Http     `yaml:"http"`
+	Kafka          *Kafka    `yaml:"kafka"`
+	PostgresMaster *Postgres `yaml:"postgresMaster"`
+	PostgresSlave  *Postgres `yaml:"postgresSlave"`
+	Producer       *Producer `yaml:"producer"`
 }
 
 type Http struct {

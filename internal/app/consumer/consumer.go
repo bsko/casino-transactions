@@ -39,11 +39,14 @@ func (p *ConsumerApp) Initialize(ctx context.Context) error {
 		return fmt.Errorf("failed to connect to kafka: %w", err)
 	}
 
-	if conf.Postgres == nil {
-		return fmt.Errorf("no postgres config provided")
+	if conf.PostgresMaster == nil {
+		return fmt.Errorf("no postgres master config provided")
+	}
+	if conf.PostgresSlave == nil {
+		return fmt.Errorf("no postgres slave config provided")
 	}
 
-	dbAdapter := repositories.NewTransactionEventRepository(*conf.Postgres)
+	dbAdapter := repositories.NewTransactionEventRepository(*conf.PostgresMaster, *conf.PostgresSlave)
 	err = dbAdapter.Connect()
 	if err != nil {
 		return fmt.Errorf("failed to connect to postgres: %w", err)
