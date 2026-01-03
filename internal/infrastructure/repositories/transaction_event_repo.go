@@ -8,10 +8,8 @@ import (
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
-	"github.com/bsko/casino-transaction-system/internal/config"
 	"github.com/bsko/casino-transaction-system/internal/entity"
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
@@ -20,10 +18,8 @@ const (
 )
 
 type TransactionEventRepository struct {
-	masterConf config.Postgres
-	slaveConf  config.Postgres
-	masterDB   *sqlx.DB
-	slaveDB    *sqlx.DB
+	masterDB *DB
+	slaveDB  *DB
 }
 
 type transactionEventRow struct {
@@ -34,47 +30,11 @@ type transactionEventRow struct {
 	CreatedAt       time.Time `db:"created_at"`
 }
 
-func NewTransactionEventRepository(masterConf config.Postgres, slaveConf config.Postgres) *TransactionEventRepository {
+func NewTransactionEventRepository(master *DB, slave *DB) *TransactionEventRepository {
 	return &TransactionEventRepository{
-		masterConf: masterConf,
-		slaveConf:  slaveConf,
+		masterDB: master,
+		slaveDB:  slave,
 	}
-}
-
-func (t *TransactionEventRepository) Connect() error {
-	masterDB, err := t.connectToInstance(t.masterConf)
-	if err != nil {
-		return fmt.Errorf("failed to connect to master database: %w", err)
-	}
-	t.masterDB = masterDB
-
-	slaveDB, err := t.connectToInstance(t.slaveConf)
-	if err != nil {
-		return fmt.Errorf("failed to connect to slave database: %w", err)
-	}
-	t.slaveDB = slaveDB
-
-	return nil
-}
-
-func (t *TransactionEventRepository) connectToInstance(conf config.Postgres) (*sqlx.DB, error) {
-	connStr := fmt.Sprintf(
-		"%s?user=%s&password=%s",
-		conf.ConnectionString,
-		conf.User,
-		conf.Password,
-	)
-
-	db, err := sqlx.Connect("postgres", connStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-
-	db.SetMaxOpenConns(conf.MaxOpenConns)
-	db.SetMaxIdleConns(conf.MaxIdleConns)
-	db.SetConnMaxLifetime(time.Duration(conf.MaxConnLifetime) * time.Minute)
-
-	return db, nil
 }
 
 func (t *TransactionEventRepository) GetListByFilter(filter entity.TransactionEventFilter) ([]entity.TransactionEvent, error) {
@@ -153,7 +113,7 @@ func (t *TransactionEventRepository) GetListByFilter(filter entity.TransactionEv
 	return events, nil
 }
 
-func (t *TransactionEventRepository) BatchStore(batch []entity.TransactionEvent) error {
+func (t *TransactionEventRepository) BatchStore(ctx context.Context, batch []entity.TransactionEvent) error {
 	if t.masterDB == nil {
 		return fmt.Errorf("master database connection is not initialized, call Connect() first")
 	}
@@ -161,13 +121,6 @@ func (t *TransactionEventRepository) BatchStore(batch []entity.TransactionEvent)
 	if len(batch) == 0 {
 		return nil
 	}
-
-	ctx := context.Background()
-	tx, err := t.masterDB.BeginTxx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
 
 	qb := sq.Insert("transaction_events").
 		Columns("user_id", "transaction_type", "amount", "created_at").
@@ -187,36 +140,9 @@ func (t *TransactionEventRepository) BatchStore(batch []entity.TransactionEvent)
 		return fmt.Errorf("failed to build insert query: %w", err)
 	}
 
-	_, err = tx.ExecContext(ctx, query, args...)
+	_, err = t.masterDB.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("failed to insert transactions: %w", err)
 	}
-
-	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	return nil
-}
-
-func (t *TransactionEventRepository) Close() error {
-	var errs []error
-
-	if t.masterDB != nil {
-		if err := t.masterDB.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("failed to close master connection: %w", err))
-		}
-	}
-
-	if t.slaveDB != nil {
-		if err := t.slaveDB.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("failed to close slave connection: %w", err))
-		}
-	}
-
-	if len(errs) > 0 {
-		return fmt.Errorf("close errors: %v", errs)
-	}
-
 	return nil
 }

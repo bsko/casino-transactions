@@ -16,5 +16,5 @@ type transactionEventReadRepository interface {
 }
 
 type transactionEventSaveRepository interface {
-	BatchStore(batch []entity.TransactionEvent) error
+	BatchStore(ctx context.Context, batch []entity.TransactionEvent) error
 }

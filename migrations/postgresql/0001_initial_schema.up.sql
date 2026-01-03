@@ -7,3 +7,4 @@ CREATE TABLE IF NOT EXISTS transaction_events (
 );
 
 CREATE INDEX idx_transaction_events_user_id ON transaction_events(user_id);
+

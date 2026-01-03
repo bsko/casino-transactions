@@ -16,11 +16,13 @@ const (
 )
 
 type ConsumerApp struct {
-	conf       *config.App
-	kafka      kafkaReaderInterface
-	db         transactionEventRepositoryInterface
-	consumer   consumerInterface
-	httpServer httpServer
+	conf             *config.App
+	kafka            kafkaReaderInterface
+	transactionsRepo transactionEventRepositoryInterface
+	dbMaster         *repositories.DB
+	dbSlave          *repositories.DB
+	consumer         consumerInterface
+	httpServer       httpServer
 }
 
 func (p *ConsumerApp) Initialize(ctx context.Context) error {
@@ -46,19 +48,29 @@ func (p *ConsumerApp) Initialize(ctx context.Context) error {
 		return fmt.Errorf("no postgres slave config provided")
 	}
 
-	dbAdapter := repositories.NewTransactionEventRepository(*conf.PostgresMaster, *conf.PostgresSlave)
-	err = dbAdapter.Connect()
+	dbMaster := repositories.NewDB(nil)
+	err = dbMaster.Connect(conf.PostgresMaster)
 	if err != nil {
 		return fmt.Errorf("failed to connect to postgres: %w", err)
 	}
 
-	consumerService := consumer.NewConsumer(kafkaAdapter, dbAdapter)
-	transactionsHandler := consumer.NewGetListProcessor(dbAdapter)
+	dbSlave := repositories.NewDB(nil)
+	err = dbSlave.Connect(conf.PostgresSlave)
+	if err != nil {
+		return fmt.Errorf("failed to connect to postgres: %w", err)
+	}
+
+	transactionsRepo := repositories.NewTransactionEventRepository(dbMaster, dbSlave)
+
+	consumerService := consumer.NewConsumer(kafkaAdapter, transactionsRepo)
+	transactionsHandler := consumer.NewGetListProcessor(transactionsRepo)
 	httpServerInstance := http.NewHttpServer(transactionsHandler, conf.Http)
 
 	p.conf = conf
 	p.kafka = kafkaAdapter
-	p.db = dbAdapter
+	p.dbMaster = dbMaster
+	p.dbSlave = dbSlave
+	p.transactionsRepo = transactionsRepo
 	p.consumer = consumerService
 	p.httpServer = httpServerInstance
 	return nil
@@ -109,9 +121,15 @@ func (p *ConsumerApp) Shutdown(ctx context.Context) error {
 		}
 	}
 
-	if p.db != nil {
-		if err := p.db.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("db close error: %w", err))
+	if p.dbMaster != nil {
+		if err := p.dbMaster.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("db master close error: %w", err))
+		}
+	}
+
+	if p.dbSlave != nil {
+		if err := p.dbSlave.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("db slave close error: %w", err))
 		}
 	}
 

@@ -18,9 +18,7 @@ type kafkaReaderInterface interface {
 }
 
 type transactionEventRepositoryInterface interface {
-	Connect() error
-	Close() error
-	BatchStore(batch []entity.TransactionEvent) error
+	BatchStore(ctx context.Context, batch []entity.TransactionEvent) error
 }
 
 type httpServer interface {
