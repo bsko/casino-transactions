@@ -13,7 +13,7 @@ import (
 )
 
 func TestConsumer(t *testing.T) {
-	t.Parallel()
+	CleanupDB(t)
 
 	ctx := context.Background()
 	db := GetTestDB()

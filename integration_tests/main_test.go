@@ -136,3 +136,13 @@ func getMigrationsPath() (string, error) {
 func GetTestDB() *sqlx.DB {
 	return testDB
 }
+
+func CleanupDB(t *testing.T) {
+	if testDB == nil {
+		t.Fatal("testDB is not initialized")
+	}
+	_, err := testDB.Exec("TRUNCATE TABLE transaction_events")
+	if err != nil {
+		t.Fatalf("Failed to cleanup database: %v", err)
+	}
+}

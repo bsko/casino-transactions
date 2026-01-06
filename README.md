@@ -34,7 +34,32 @@ The consumer is configured through `configs/consumer-config.yaml`, where connect
 
 ## Running
 
-### 1. Starting Infrastructure
+### Using Makefile (Recommended)
+
+The easiest way to start all services is using the Makefile:
+
+```bash
+make start
+```
+
+This command will:
+1. Start infrastructure (Kafka, Zookeeper, PostgreSQL) using Docker Compose
+2. Start the producer in the background
+3. Start the consumer in the background
+
+Logs are available at:
+- Producer: `/tmp/producer.log`
+- Consumer: `/tmp/consumer.log`
+
+To stop all services:
+
+```bash
+make stop
+```
+
+### Manual Start
+
+#### 1. Starting Infrastructure
 
 Before running the applications, you need to start the infrastructure (Kafka and PostgreSQL) using Docker Compose:
 
@@ -47,13 +72,13 @@ This will start the following services:
 - **Kafka** (port 9092) - message broker
 - **PostgreSQL** (port 5432) - database for storing transactions
 
-### 2. Running Producer
+#### 2. Running Producer
 
 ```bash
 go run cmd/producer/main.go
 ```
 
-### 3. Running Consumer
+#### 3. Running Consumer
 
 ```bash
 go run cmd/consumer/main.go
@@ -62,6 +87,24 @@ go run cmd/consumer/main.go
 The consumer will start an HTTP server on port 9093 (configurable in `configs/consumer-config.yaml`).
 
 ## Testing
+
+### Using Makefile (Recommended)
+
+Before running tests, you need to generate mocks:
+
+```bash
+make gen
+```
+
+After generating mocks, you can run tests using Makefile commands:
+
+```bash
+make test        # Run tests in internal directory
+make test-tt     # Run integration tests
+make test-ttt    # Run all tests in the project
+```
+
+### Manual Testing
 
 Testing uses `mockgen` from the `go.uber.org/mock` package. Before running tests, you need to generate mocks:
 

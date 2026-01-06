@@ -38,7 +38,7 @@ func TestConsumer_Start(t *testing.T) {
 			AnyTimes()
 
 		mockRepo.EXPECT().
-			BatchStore(gomock.Any()).
+			BatchStore(gomock.Any(), gomock.Any()).
 			Return(nil).
 			AnyTimes()
 
@@ -105,8 +105,8 @@ func TestConsumer_Start(t *testing.T) {
 			Times(100)
 
 		mockRepo.EXPECT().
-			BatchStore(gomock.Any()).
-			Do(func(batch []entity.TransactionEvent) {
+			BatchStore(gomock.Any(), gomock.Any()).
+			Do(func(ctx context.Context, batch []entity.TransactionEvent) {
 				assert.Equal(t, 100, len(batch))
 			}).
 			Return(expectedErr).
