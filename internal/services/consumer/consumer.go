@@ -35,7 +35,16 @@ func (s *Consumer) Start(ctx context.Context) error {
 
 	batcher := NewBatcher(s.batchSize, batchTimeout, func(events []entity.TransactionEvent) error {
 		log.Println("Saving batch of events")
-		return s.transactionEventRepository.BatchStore(flushCtx, events)
+		err := s.transactionEventRepository.BatchStore(flushCtx, events)
+		if err != nil {
+			return err
+		}
+		if commitErr := s.reader.Commit(ctx); commitErr != nil {
+			log.Printf("Failed to commit offsets: %v", commitErr)
+		} else {
+			log.Println("Offsets committed successfully")
+		}
+		return nil
 	})
 	defer func() { _ = batcher.Close() }()
 
@@ -52,9 +61,17 @@ func (s *Consumer) Start(ctx context.Context) error {
 					log.Println("Consumer stopped by context cancellation during read")
 					_ = batcher.Close()
 					return nil
+				} else {
+					select {
+					case <-ctx.Done():
+						log.Println("Consumer stopped by context cancellation during retry")
+						_ = batcher.Close()
+						return nil
+					default:
+						log.Println("Consumer stopped during read, repeating")
+						continue
+					}
 				}
-				log.Printf("Failed to read message from Kafka: %v", err)
-				return err
 			}
 			if err = batcher.Add(*msg); err != nil {
 				log.Printf("Failed to add message to batcher: %v", err)

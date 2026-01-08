@@ -14,6 +14,7 @@ type consumerInterface interface {
 type kafkaReaderInterface interface {
 	Connect(ctx context.Context) error
 	Read(ctx context.Context) (*entity.TransactionEvent, error)
+	Commit(ctx context.Context) error
 	Close() error
 }
 

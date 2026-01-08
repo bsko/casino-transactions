@@ -9,6 +9,7 @@ import (
 
 type kafkaReader interface {
 	Read(ctx context.Context) (*entity.TransactionEvent, error)
+	Commit(ctx context.Context) error
 }
 
 type transactionEventReadRepository interface {

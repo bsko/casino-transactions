@@ -41,13 +41,13 @@ func (b *Batcher) Add(msg entity.TransactionEvent) error {
 }
 
 func (b *Batcher) flush() error {
+	defer b.resetTimer()
 	if len(b.batch) == 0 {
 		return nil
 	}
 
 	err := b.flushFunc(b.batch)
 	b.batch = b.batch[:0]
-	b.resetTimer()
 	return err
 }
 

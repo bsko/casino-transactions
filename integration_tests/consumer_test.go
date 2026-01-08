@@ -103,6 +103,10 @@ func (k *kafkaReader) Read(ctx context.Context) (*entity.TransactionEvent, error
 	}
 }
 
+func (k *kafkaReader) Commit(_ context.Context) error {
+	return nil
+}
+
 func (k *kafkaReader) Send(event entity.TransactionEvent) {
 	k.events <- event
 }

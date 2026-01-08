@@ -2,15 +2,12 @@ package producer
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 
 	"github.com/bsko/casino-transaction-system/internal/config"
 	"github.com/google/uuid"
-)
-
-const (
-	workersCount = 3
 )
 
 type Producer struct {
@@ -33,7 +30,8 @@ func (p *Producer) Start(ctx context.Context) error {
 
 	p.preGenerateUsers(p.conf.DistinctUsers)
 
-	jobs := make(chan struct{})
+	workersCount := getWorkersCount(p.conf.CreationRPS)
+	jobs := make(chan struct{}, p.conf.CreationRPS*2)
 	var wg sync.WaitGroup
 	wg.Add(workersCount)
 	for w := 1; w <= workersCount; w++ {
@@ -54,6 +52,7 @@ func (p *Producer) Start(ctx context.Context) error {
 					jobs <- struct{}{}
 				}
 			case <-ctx.Done():
+				log.Printf("Shutting down producer goroutine\n")
 				ticker.Stop()
 				return
 			}
@@ -68,4 +67,11 @@ func (p *Producer) preGenerateUsers(distinctUsers int) {
 	for i := 0; i < distinctUsers; i++ {
 		p.usersMap[i] = uuid.New()
 	}
+}
+
+func getWorkersCount(creationRPS int) int {
+	if creationRPS > 10 {
+		return creationRPS
+	}
+	return 10
 }

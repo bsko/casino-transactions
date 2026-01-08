@@ -42,6 +42,11 @@ func TestConsumer_Start(t *testing.T) {
 			Return(nil).
 			AnyTimes()
 
+		mockReader.EXPECT().
+			Commit(gomock.Any()).
+			Return(nil).
+			AnyTimes()
+
 		errChan := make(chan error, 1)
 		go func() {
 			errChan <- consumer.Start(ctx)
@@ -67,17 +72,22 @@ func TestConsumer_Start(t *testing.T) {
 
 		consumer := NewConsumer(mockReader, mockRepo)
 
-		ctx := context.Background()
+		ctx, cancel := context.WithCancel(context.Background())
 		expectedErr := errors.New("kafka read error")
 
 		mockReader.EXPECT().
 			Read(gomock.Any()).
 			Return(nil, expectedErr).
-			Times(1)
+			Do(func(_ context.Context) {
+				go func() {
+					time.Sleep(10 * time.Millisecond)
+					cancel()
+				}()
+			}).
+			AnyTimes()
 
 		err := consumer.Start(ctx)
-		assert.Error(t, err)
-		assert.Equal(t, expectedErr, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("error on batcher add returns error", func(t *testing.T) {
