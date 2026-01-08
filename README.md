@@ -6,7 +6,7 @@ A casino transaction management system consisting of two main components: produc
 
 ### Producer
 
-The producer generates transaction events (bets and wins) and sends them to Kafka. The application is configured through the `configs/producer-config.yaml` configuration file, where you can set event generation parameters:
+The producer generates transaction events (bets and wins) and sends them to Kafka. The application is configured through the `configs/producer/config.yaml` configuration file, where you can set event generation parameters:
 
 - `initialBatchSize` - initial batch size
 - `creationRPS` - number of events created per second
@@ -25,7 +25,7 @@ The REST API is described in the `api/openapi.yaml` file and includes the follow
 - Result pagination
 - Health check endpoint
 
-The consumer is configured through `configs/consumer-config.yaml`, where connection parameters for Kafka, PostgreSQL, and HTTP server are specified.
+The consumer is configured through `configs/consumer/config.yaml`, where connection parameters for Kafka, PostgreSQL, and HTTP server are specified.
 
 ## Requirements
 
@@ -84,7 +84,7 @@ go run cmd/producer/main.go
 go run cmd/consumer/main.go
 ```
 
-The consumer will start an HTTP server on port 9093 (configurable in `configs/consumer-config.yaml`).
+The consumer will start an HTTP server on port 9093 (configurable in `configs/consumer/config.yaml`).
 
 ## Testing
 
@@ -121,7 +121,9 @@ go test ./...
 ## Configuration
 
 Configuration files are located in the `configs/` directory:
-- `producer-config.yaml` - producer settings
-- `consumer-config.yaml` - consumer settings
+- `producer/config.yaml` - producer settings
+- `producer/config.production.yaml` - producer production settings
+- `consumer/config.yaml` - consumer settings
+- `consumer/config.production.yaml` - consumer production settings
 
 If necessary, you can change connection parameters for Kafka, PostgreSQL, and other application settings.

@@ -23,7 +23,7 @@ func NewKafkaReader(conf config.Kafka) *KafkaReader {
 	}
 }
 
-func (k *KafkaReader) Connect(ctx context.Context) error {
+func (k *KafkaReader) Connect(_ context.Context) error {
 	var mechanism kafka.Dialer
 	if k.conf.User != "" && k.conf.Password != "" {
 		mechanism.SASLMechanism = plain.Mechanism{

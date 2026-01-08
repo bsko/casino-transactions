@@ -2,25 +2,35 @@ package config
 
 import (
 	"fmt"
-	"os"
+	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/spf13/viper"
 )
 
-type Reader struct{}
+type Reader struct {
+	viper *viper.Viper
+}
 
 func NewReader() *Reader {
-	return &Reader{}
+	v := viper.New()
+	v.SetConfigType("yaml")
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.AutomaticEnv()
+
+	return &Reader{
+		viper: v,
+	}
 }
 
 func (r *Reader) Read(filename string) (conf *App, err error) {
-	data, err := os.ReadFile(filename)
-	if err != nil {
+	r.viper.SetConfigFile(filename)
+
+	if err := r.viper.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
 	var app App
-	if err := yaml.Unmarshal(data, &app); err != nil {
+	if err := r.viper.Unmarshal(&app); err != nil {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
@@ -50,12 +60,15 @@ type Kafka struct {
 }
 
 type Postgres struct {
-	ConnectionString string `yaml:"connectionString"`
-	User             string `yaml:"user"`
-	Password         string `yaml:"password"`
-	MaxOpenConns     int    `yaml:"maxOpenConns"`
-	MaxIdleConns     int    `yaml:"maxIdleConns"`
-	MaxConnLifetime  int    `yaml:"maxConnLifetime"`
+	Host            string `yaml:"host"`
+	Port            int    `yaml:"port"`
+	Database        string `yaml:"database"`
+	User            string `yaml:"user"`
+	Password        string `yaml:"password"`
+	SSLMode         string `yaml:"sslmode"`
+	MaxOpenConns    int    `yaml:"maxOpenConns"`
+	MaxIdleConns    int    `yaml:"maxIdleConns"`
+	MaxConnLifetime int    `yaml:"maxConnLifetime"`
 }
 
 type Producer struct {

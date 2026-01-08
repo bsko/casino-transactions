@@ -17,12 +17,12 @@ func (p *Producer) Worker(ctx context.Context, id int, jobs <-chan struct{}, wg 
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Printf("finishing by context finished event: %d", id)
+			fmt.Printf("finishing by context finished event: %d\n", id)
 			return
 		case _ = <-jobs:
 			err := p.generateSingleMessage(ctx)
 			if err != nil {
-				fmt.Printf("failed to generate single message: %s", err)
+				fmt.Printf("failed to generate single message: %s\n", err)
 				cancel()
 			}
 		}

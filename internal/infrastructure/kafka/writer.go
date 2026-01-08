@@ -23,9 +23,9 @@ func NewKafkaWriter(conf config.Kafka) *KafkaWriter {
 }
 
 func (k *KafkaWriter) Connect(ctx context.Context) error {
-	var mechanism kafka.Dialer
+	var dialer kafka.Dialer
 	if k.conf.User != "" && k.conf.Password != "" {
-		mechanism.SASLMechanism = plain.Mechanism{
+		dialer.SASLMechanism = plain.Mechanism{
 			Username: k.conf.User,
 			Password: k.conf.Password,
 		}

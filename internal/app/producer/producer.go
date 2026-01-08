@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	producerConfigFilename = "configs/producer-config.yaml"
+	producerConfigFilename = "configs/producer/config.yaml"
 )
 
 type ProducerApp struct {
