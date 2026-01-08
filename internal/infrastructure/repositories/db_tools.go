@@ -21,14 +21,18 @@ func NewDB(conn *sqlx.DB) *DB {
 }
 
 func (db *DB) Connect(conf *config.Postgres) error {
-	connStr := fmt.Sprintf(
-		"%s?user=%s&password=%s",
-		conf.ConnectionString,
+	// Build DSN connection string
+	dsn := fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		conf.Host,
+		conf.Port,
 		conf.User,
 		conf.Password,
+		conf.Database,
+		conf.SSLMode,
 	)
 
-	conn, err := sqlx.Connect("postgres", connStr)
+	conn, err := sqlx.Connect("postgres", dsn)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}

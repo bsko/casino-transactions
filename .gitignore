@@ -5,6 +5,10 @@
 *.so
 *.dylib
 
+# Application binaries
+consumer
+producer
+
 # Test binary, built with `go test -c`
 *.test
 

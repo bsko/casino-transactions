@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	consumerConfigFilename = "configs/consumer-config.yaml"
+	consumerConfigFilename = "configs/consumer/config.yaml"
 )
 
 type ConsumerApp struct {

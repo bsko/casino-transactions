@@ -31,12 +31,10 @@ func (s *Consumer) Start(ctx context.Context) error {
 	log.Println("Starting consumer")
 	defer func() { log.Println("Stopping consumer") }()
 
-	// Создаем новый контекст для flush операций, чтобы они могли завершиться даже при отмене основного контекста
 	flushCtx := context.Background()
 
 	batcher := NewBatcher(s.batchSize, batchTimeout, func(events []entity.TransactionEvent) error {
 		log.Println("Saving batch of events")
-		// Используем flushCtx вместо ctx, чтобы flush мог завершиться даже при отмене основного контекста
 		return s.transactionEventRepository.BatchStore(flushCtx, events)
 	})
 	defer func() { _ = batcher.Close() }()
@@ -50,7 +48,6 @@ func (s *Consumer) Start(ctx context.Context) error {
 		default:
 			msg, err := s.reader.Read(ctx)
 			if err != nil {
-				// Если ошибка из-за отмены контекста, flush-нем батчер перед возвратом
 				if ctx.Err() != nil {
 					log.Println("Consumer stopped by context cancellation during read")
 					_ = batcher.Close()
